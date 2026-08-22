@@ -1,0 +1,13 @@
+{
+  "itemGroup.teammod": "Example Mod Tab",
+  "block.teammod.example_block": "Example Block",
+  "item.teammod.example_item": "Example Item",
+
+  "teammod.configuration.title": "TeamMod Configs",
+  "teammod.configuration.section.teammod.common.toml": "TeamMod Configs",
+  "teammod.configuration.section.teammod.common.toml.title": "TeamMod Configs",
+  "teammod.configuration.items": "Item List",
+  "teammod.configuration.logDirtBlock": "Log Dirt Block",
+  "teammod.configuration.magicNumberIntroduction": "Magic Number Text",
+  "teammod.configuration.magicNumber": "Magic Number"
+}

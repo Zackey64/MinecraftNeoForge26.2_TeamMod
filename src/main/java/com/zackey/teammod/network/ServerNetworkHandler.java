@@ -1,7 +1,10 @@
 package com.zackey.teammod.network;
 
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -21,7 +24,7 @@ public class ServerNetworkHandler {
 
         // 時間処理
         tickCounter++;
-        if (tickCounter < 20) {
+        if (tickCounter < 10) {
             return;
         }
         tickCounter = 0;
@@ -46,9 +49,11 @@ public class ServerNetworkHandler {
             // 2ステータスデータ
             statusList.add(new SharedPlayerData.Status(name, player.getHealth(), player.getMaxHealth(), player.getFoodData().getFoodLevel()));
             // メインハンドとオフハンド
-            String mainHand = getItemName(player.getMainHandItem());
-            String offHand = getItemName(player.getOffhandItem());
-            invList.add(new SharedPlayerData.Inventory(name, mainHand, offHand));
+            ItemStack mainStack = player.getItemInHand(InteractionHand.MAIN_HAND);
+            ItemStack offStack = player.getItemInHand(InteractionHand.OFF_HAND);
+            String mainHandId = BuiltInRegistries.ITEM.getKey(mainStack.getItem()).toString();
+            String offHandId = BuiltInRegistries.ITEM.getKey(offStack.getItem()).toString(); // "minecraft:diamond_sword"のような文字で送る
+            invList.add(new SharedPlayerData.Inventory(name, mainHandId, offHandId));
         }
 
         // パケットの箱にすべてのデータを詰め込む

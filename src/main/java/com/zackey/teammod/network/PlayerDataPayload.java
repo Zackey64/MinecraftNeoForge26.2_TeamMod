@@ -36,6 +36,7 @@ public record PlayerDataPayload (
                     buf.writeFloat(s.health());
                     buf.writeFloat(s.maxHealth());
                     buf.writeInt(s.foodLevel());
+                    buf.writeInt(s.level());
                 }
                 buf.writeInt(payload.inventories().size());
                 for (Inventory i : payload.inventories()) {
@@ -53,7 +54,7 @@ public record PlayerDataPayload (
                 int statusSize = buf.readInt();
                 List<Status> statusList = new ArrayList<>();
                 for (int i = 0; i < statusSize; i++) {
-                    statusList.add(new Status(buf.readUtf(), buf.readFloat(), buf.readFloat(), buf.readInt()));
+                    statusList.add(new Status(buf.readUtf(), buf.readFloat(), buf.readFloat(), buf.readInt(), buf.readInt()));
                 }
                 int invSize = buf.readInt();
                 List<Inventory> invList = new ArrayList<>();

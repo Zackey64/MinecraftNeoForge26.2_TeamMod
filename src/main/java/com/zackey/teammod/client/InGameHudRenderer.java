@@ -8,6 +8,7 @@ import net.minecraft.core.Position;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
@@ -41,7 +42,7 @@ public class InGameHudRenderer {
                     // ----------------------------------------------------------------
 
                     int set_x = 4;   // 画面上端からの開始位置
-                    int set_y = 120;   // 画面左端からの開始位置
+                    int set_y = 112;   // 画面左端からの開始位置
                     int set_gap = 20; // 別PLの境界
 
                     //サーバーから届いているプレイヤー分をループして描画
@@ -71,11 +72,14 @@ public class InGameHudRenderer {
                         int x,y,w,h;
 
                         // 背景
-                        x = 0; y = 0; w = 72; h = 16;
-                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0xFF000000);
+                        x = 0; y = 0; w = 96; h = 16;
+                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0x66333333);
+                        //guiGraphics.outline(bx+x-1, by+y-1, w+2, h+2, getPlayerColor(name));
 
                         // プレイヤーカラー
-                        x = 0; y = 0; w = 4; h = 16;
+                        x = 0; y = 0; w = 2; h = 16;
+                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, getPlayerColor(name));
+                        x = 94; y = 0; w = 2; h = 16;
                         guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, getPlayerColor(name));
 
                         // プレイヤー名
@@ -83,19 +87,35 @@ public class InGameHudRenderer {
                         MutableComponent nameComp = Component.literal(name).withStyle(s -> s.withColor(0xFFFFFFFF));
                         guiGraphics.drawScrollingString(hudTextCollector, mc.font, nameComp, bx+x, bx+x+w, by+y);
 
+                        // レベル数
+                        x = 90; y = 2; w = 32; h = 12;
+                        String levelText = status != null ? status.level() + "" : "";
+                        MutableComponent lvComp = Component.literal(levelText).withStyle(s -> s.withColor(0xFF33FF33));
+                        guiGraphics.drawScrollingString(hudTextCollector, mc.font, lvComp, bx+x-mc.font.width(levelText), bx+x+w, by+y);
+
                         // 体力
-                        x = 6; y = 12; w = 64; h = 2;
-                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0xFF333333);
+                        x = 6; y = 12; w = 40; h = 2;
+                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0xFF666666);
                         w = (int) ( w * Math.ceil(status.health()) / Math.ceil(status.maxHealth()) );
-                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0xFFFFFFFF);
+                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0xFFFF3333);
+
+                        // 満腹度
+                        x = 50; y = 12; w = 40; h = 2;
+                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0xFF666666);
+                        w = (int) ( w * status.foodLevel() / 20);
+                        guiGraphics.fill(bx+x+(40-w), by+y, bx+x+40, by+y+h, 0xFFFFFF00);
 
                         // アイテム
-                        x = 72; y = 0; w = 32; h = 16;
-                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0x66000000);
-                        x = 72; y = 0;
-                        guiGraphics.item(offStack , bx+x, by+y);
-                        x = 88; y = 0;
-                        guiGraphics.item(mainStack, bx+x, by+y);
+                        if(!offStack.isEmpty()) {
+                            x = 100; y = 0; w = 16; h = 16;
+                            guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0x66333333);
+                            guiGraphics.item(offStack , bx+x, by+y);
+                        }
+                        if(!mainStack.isEmpty()) {
+                            x = 116; y = 0; w = 16; h = 16;
+                            guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0x66333333);
+                            guiGraphics.item(mainStack, bx + x, by + y);
+                        }
 
 
                     }
@@ -106,7 +126,7 @@ public class InGameHudRenderer {
 
                     int map_x = 4;      // 画面上端からの開始位置
                     int map_y = 4;      // 画面左端からの開始位置
-                    int map_size = 104; // おおきさ
+                    int map_size = 96; // おおきさ
                     float map_scale = 0.15f; // 表示スケール
                     int maxDistance = 256; //最大表示ブロック半径（それ以上は端に表示）
                     int center_x = map_x + map_size/2;
@@ -118,29 +138,29 @@ public class InGameHudRenderer {
                     float myRot = (float) Math.toRadians(mc.player.getYRot());
 
                     // 背景と円の描画
-                    guiGraphics.fill(map_x, map_y, map_x+map_size, map_y+map_size, 0x66000000);
+                    guiGraphics.fill(map_x, map_y, map_x+map_size, map_y+map_size, 0x66333333);
                     for (int i = 64; i < maxDistance; i += 64){
-                        drawCircle(guiGraphics, center_x, center_y, (int)(map_scale *i), 0x66333333);
+                        drawCircle(guiGraphics, center_x, center_y, (int)(map_scale *i), 0x33333333);
                     }
                     drawCircle(guiGraphics, center_x, center_y, (int)(map_scale * maxDistance), 0xFFFFFFFF);
 
                     //方角
-                    int padding = 8;
+                    int padding = 0;
                     int north_x = (int) Math.round(center_x + Math.cos(-myRot + Math.PI / 2.0) * (map_scale*maxDistance + padding ));
                     int north_y = (int) Math.round(center_y + Math.sin(-myRot + Math.PI / 2.0) * (map_scale*maxDistance + padding ));
-                    MutableComponent northComp = Component.literal("N").withStyle(s -> s.withColor(0xFFFFFFFF));
+                    MutableComponent northComp = Component.literal("N").withStyle(s -> s.withColor(0xFFFF3333));
                     guiGraphics.drawScrollingString(hudTextCollector, mc.font, northComp, north_x-3, north_x+3, north_y-4);
                     int south_x = (int) Math.round(center_x + Math.cos(-myRot + Math.PI / 2.0 + Math.PI) * (map_scale*maxDistance + padding ));
                     int south_y = (int) Math.round(center_y + Math.sin(-myRot + Math.PI / 2.0 + Math.PI) * (map_scale*maxDistance + padding ));
-                    MutableComponent southComp = Component.literal("S").withStyle(s -> s.withColor(0xFF999999));
+                    MutableComponent southComp = Component.literal("S").withStyle(s -> s.withColor(0xFFFFFFFF));
                     guiGraphics.drawScrollingString(hudTextCollector, mc.font, southComp, south_x-3, south_x+3, south_y-4);
                     int east_x = (int) Math.round(center_x + Math.cos(-myRot + Math.PI / 2.0 + Math.PI / 2.0) * (map_scale * maxDistance + padding ));
                     int east_y = (int) Math.round(center_y + Math.sin(-myRot + Math.PI / 2.0 + Math.PI / 2.0) * (map_scale * maxDistance + padding ));
-                    MutableComponent eastComp = Component.literal("E").withStyle(s -> s.withColor(0xFF999999));
+                    MutableComponent eastComp = Component.literal("E").withStyle(s -> s.withColor(0xFFFFFFFF));
                     guiGraphics.drawScrollingString(hudTextCollector, mc.font, eastComp, east_x - 3, east_x + 3, east_y - 4);
                     int west_x = (int) Math.round(center_x + Math.cos(-myRot + Math.PI / 2.0 - Math.PI / 2.0) * (map_scale * maxDistance + padding ));
                     int west_y = (int) Math.round(center_y + Math.sin(-myRot + Math.PI / 2.0 - Math.PI / 2.0) * (map_scale * maxDistance + padding ));
-                    MutableComponent westComp = Component.literal("W").withStyle(s -> s.withColor(0xFF999999));
+                    MutableComponent westComp = Component.literal("W").withStyle(s -> s.withColor(0xFFFFFFFF));
                     guiGraphics.drawScrollingString(hudTextCollector, mc.font, westComp, west_x - 3, west_x + 3, west_y - 4);
 
                     //サーバーから届いているプレイヤー分をループして描画
@@ -148,9 +168,6 @@ public class InGameHudRenderer {
 
                         SharedPlayerData.Position pos = positions.get(i); //ポジション情報一括取得
                         String name = pos.name();
-
-                        int point_x;
-                        int point_y;
 
                         if (!name.equals(myName)) {
                             // 味方の位置
@@ -165,22 +182,19 @@ public class InGameHudRenderer {
                                 distance = maxDistance * map_scale;
                             }
 
-                            point_x = (int) Math.round(center_x + Math.cos(angle) * distance);
-                            point_y = (int) Math.round(center_y + Math.sin(angle) * distance);
+                            int point_x = (int) Math.round(center_x + Math.cos(angle) * distance);
+                            int point_y = (int) Math.round(center_y + Math.sin(angle) * distance);
                             int add_y = (int) Math.max(Math.min(deltaY,64),-64) / 2;
 
-                            guiGraphics.fill(point_x, point_y, point_x+1, point_y - add_y, 0xFF666666);
+                            guiGraphics.fill(point_x, point_y, point_x+1, point_y - add_y, 0xFF999999);
                             guiGraphics.fill(point_x, point_y, point_x+1, point_y+1, 0xFFFFFFFF);
                             guiGraphics.fill(point_x - 1, point_y - add_y - 1, point_x + 2, point_y - add_y + 2, getPlayerColor(name));
 
-                        } else {
-                            // 自身の位置
-                            point_x = center_x;
-                            point_y = center_y;
-                            guiGraphics.fill(point_x - 1, point_y - 1, point_x + 2, point_y + 2, getPlayerColor(name));
                         }
 
                     }
+                    // 自身の位置
+                    guiGraphics.fill(center_x - 1, center_y - 1, center_x + 2, center_y + 2, getPlayerColor(myName));
 
                     // ----------------------------------------------------------------
                     // ここまで

@@ -47,7 +47,7 @@ public class ServerNetworkHandler {
             // 座標データ
             posList.add(new SharedPlayerData.Position(name, player.getX(), player.getY(), player.getZ()));
             // 2ステータスデータ
-            statusList.add(new SharedPlayerData.Status(name, player.getHealth(), player.getMaxHealth(), player.getFoodData().getFoodLevel()));
+            statusList.add(new SharedPlayerData.Status(name, player.getHealth(), player.getMaxHealth(), player.getFoodData().getFoodLevel(), player.experienceLevel));
             // メインハンドとオフハンド
             ItemStack mainStack = player.getItemInHand(InteractionHand.MAIN_HAND);
             ItemStack offStack = player.getItemInHand(InteractionHand.OFF_HAND);

@@ -1,6 +1,6 @@
 package com.zackey.teammod.network;
 
-
+import com.zackey.teammod.network.SharedPlayerData.PlayerData;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -35,9 +35,8 @@ public class ServerNetworkHandler {
             return;
         }
 
-        List<SharedPlayerData.Position> posList = new ArrayList<>();
-        List<SharedPlayerData.Status> statusList = new ArrayList<>();
-        List<SharedPlayerData.Inventory> invList = new ArrayList<>();
+        // 統合データ（PlayerData）を格納する1本のリストを作成
+        List<PlayerData> playersDataList = new ArrayList<>();
 
         // プレイヤー分送る
         for (ServerPlayer player : players) {
@@ -45,30 +44,39 @@ public class ServerNetworkHandler {
             //名前
             String name = player.getName().getString();
             // 座標データ
-            posList.add(new SharedPlayerData.Position(name, player.getX(), player.getY(), player.getZ()));
+            String worldType = player.level().dimension().toString();
+            SharedPlayerData.Position pos = new SharedPlayerData.Position(worldType, player.getX(), player.getY(), player.getZ());
             // 2ステータスデータ
-            statusList.add(new SharedPlayerData.Status(name, player.getHealth(), player.getMaxHealth(), player.getFoodData().getFoodLevel(), player.experienceLevel));
-            // メインハンドとオフハンド
-            ItemStack mainStack = player.getItemInHand(InteractionHand.MAIN_HAND);
-            ItemStack offStack = player.getItemInHand(InteractionHand.OFF_HAND);
-            String mainHandId = BuiltInRegistries.ITEM.getKey(mainStack.getItem()).toString();
-            String offHandId = BuiltInRegistries.ITEM.getKey(offStack.getItem()).toString(); // "minecraft:diamond_sword"のような文字で送る
-            invList.add(new SharedPlayerData.Inventory(name, mainHandId, offHandId));
+            SharedPlayerData.Status status = new SharedPlayerData.Status(player.getHealth(), player.getMaxHealth(), player.getFoodData().getFoodLevel(), player.experienceLevel);
+            // ６アイテム
+            List<SharedPlayerData.ItemData> items = new ArrayList<>();
+            items.add(createItemData(player.getItemInHand(InteractionHand.MAIN_HAND)));
+            items.add(createItemData(player.getItemInHand(InteractionHand.OFF_HAND)));
+            items.add(createItemData(player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD)));
+            items.add(createItemData(player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST)));
+            items.add(createItemData(player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.LEGS)));
+            items.add(createItemData(player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.FEET)));
+            SharedPlayerData.Inventory inv = new SharedPlayerData.Inventory(items);
+
+            playersDataList.add(new PlayerData(name, pos, status, inv));
         }
 
-        // パケットの箱にすべてのデータを詰め込む
-        PlayerDataPayload packet = new PlayerDataPayload(posList, statusList, invList);
+        // 統合された1本の大元リストをパケットに詰めて全プレイヤーへ一斉送信！
+        PlayerDataPayload packet = new PlayerDataPayload(playersDataList);
         PacketDistributor.sendToAllPlayers(packet);
 
     }
 
 
-    private static String getItemName(net.minecraft.world.item.ItemStack stack) {
-        // もし手が空っぽ（空気ブロック）なら「空気」と返す
-        if (stack.isEmpty()) {
-            return "空気";
-        }
-        // アイテム名（例: ダイヤモンドの剣）を取得して文字列として返す
-        return stack.getHoverName().getString();
+    //
+    private static SharedPlayerData.ItemData createItemData(ItemStack stack) {
+
+        // アイテムの公式ID（"minecraft:diamond_sword"など）を取得
+        String itemId = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+        // 耐久値が設定されているアイテム（武器・防具・ツール）なら「残り耐久 / 最大耐久」の割合を計算。無ければ -1.0F
+        float ratio = stack.isDamageableItem() ? (float)(stack.getMaxDamage() - stack.getDamageValue()) / stack.getMaxDamage() : -1.0F;
+
+        return new SharedPlayerData.ItemData(itemId, ratio);
     }
+
 }

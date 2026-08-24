@@ -1,6 +1,9 @@
 package com.zackey.teammod.client;
 
+
+import com.zackey.teammod.network.SharedPlayerData.ItemData;
 import com.zackey.teammod.network.SharedPlayerData;
+import com.zackey.teammod.network.SharedPlayerData.PlayerData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ActiveTextCollector;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -23,98 +26,87 @@ public class InGameHudRenderer {
                 Identifier.fromNamespaceAndPath("teamhud", "main_hud"),
                 (guiGraphics, deltaTracker) -> {
 
-                    // 初期
                     Minecraft mc = Minecraft.getInstance();
+                    // 1. F1キー非表示・プレイヤー不在時の判定
                     if (mc.player == null || mc.gui.hud.isHidden()) { // F1キー非表示判定
                         return;
                     }
-
                     // テキストコレクターインスタンスを取得
                     ActiveTextCollector hudTextCollector = guiGraphics.textRenderer(GuiGraphicsExtractor.HoveredTextEffects.NONE);
-
-                    // 全員分のデータを取得
-                    List<SharedPlayerData.Position> positions = ClientDataStorage.getPositions();
-                    List<SharedPlayerData.Status> statuses = ClientDataStorage.getStatuses();
-                    List<SharedPlayerData.Inventory> inventories = ClientDataStorage.getInventories();
+                    // 保管庫から統合されたプレイヤーデータ一覧を取得
+                    List<PlayerData> playersData = ClientDataStorage.getPlayersData();
 
                     // ----------------------------------------------------------------
                     // プレーヤー一覧
                     // ----------------------------------------------------------------
 
-                    int set_x = 4;   // 画面上端からの開始位置
-                    int set_y = 112;   // 画面左端からの開始位置
-                    int set_gap = 20; // 別PLの境界
+                    int bx = 4;   // 画面上端からの開始位置
+                    int by = 112;   // 画面左端からの開始位置
 
                     //サーバーから届いているプレイヤー分をループして描画
-                    for (int i = 0; i < positions.size(); i++) {
+                    for (PlayerData data : playersData) {
 
-                        SharedPlayerData.Position pos = positions.get(i); //ポジション情報一括取得
-                        SharedPlayerData.Status status = statuses.get(i); //ステータス情報一括取得
-                        SharedPlayerData.Inventory inv = inventories.get(i); // アイテム情報一括取得
-                        String name = pos.name();
-
-                        // 描画エンジンに渡すためのItemStackオブジェクトに変換
-                        Identifier mainResource = Identifier.parse(inv.mainHandItem());
-                        Identifier offResource = Identifier.parse(inv.offHandItem());
-                        net.minecraft.world.item.Item mainItem = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(mainResource)
-                                .map(net.minecraft.core.Holder.Reference::value) // HolderからItemの実体を取り出す
-                                .orElse(net.minecraft.world.item.Items.AIR);     // 見つからなければ「空気」にする
-                        net.minecraft.world.item.Item offItem = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(offResource)
-                                .map(net.minecraft.core.Holder.Reference::value)
-                                .orElse(net.minecraft.world.item.Items.AIR);
-                        net.minecraft.world.item.ItemStack mainStack = new net.minecraft.world.item.ItemStack(mainItem);
-                        net.minecraft.world.item.ItemStack offStack = new net.minecraft.world.item.ItemStack(offItem);
-
-
-
-                        int bx = set_x;
-                        int by = set_y + set_gap * i;
                         int x,y,w,h;
+
+                        //メインハンド以外で詳細表示出ない場合はスキップ
+                        if (KeyInputHandler.getHudMode() == 0){
+                            continue;
+                        }
+
+                        SharedPlayerData.Status status = data.status();//ステータス情報一括取得
+                        SharedPlayerData.Inventory inv = data.inventory();// アイテム情報一括取得
 
                         // 背景
                         x = 0; y = 0; w = 96; h = 16;
-                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0x66333333);
-                        //guiGraphics.outline(bx+x-1, by+y-1, w+2, h+2, getPlayerColor(name));
-
+                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0xcc333333);
                         // プレイヤーカラー
+                        int color = getPlayerColor(data.name());
                         x = 0; y = 0; w = 2; h = 16;
-                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, getPlayerColor(name));
+                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, color);
                         x = 94; y = 0; w = 2; h = 16;
-                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, getPlayerColor(name));
+                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, color);
 
                         // プレイヤー名
-                        x = 6; y = 2; w = 64; h = 12;
-                        MutableComponent nameComp = Component.literal(name).withStyle(s -> s.withColor(0xFFFFFFFF));
-                        guiGraphics.drawScrollingString(hudTextCollector, mc.font, nameComp, bx+x, bx+x+w, by+y);
-
+                        x = 6; y = 2;
+                        String name = data.name();
+                        drawText(guiGraphics, name, bx+x, by+y, 0xFFFFFFFF, false);
                         // レベル数
-                        x = 90; y = 2; w = 32; h = 12;
-                        String levelText = status != null ? status.level() + "" : "";
-                        MutableComponent lvComp = Component.literal(levelText).withStyle(s -> s.withColor(0xFF33FF33));
-                        guiGraphics.drawScrollingString(hudTextCollector, mc.font, lvComp, bx+x-mc.font.width(levelText), bx+x+w, by+y);
+                        x = 90; y = 2;
+                        String level = status.level() + "";
+                        drawText(guiGraphics, level, bx+x, by+y, 0xFF33FF33, true);
 
                         // 体力
                         x = 6; y = 12; w = 40; h = 2;
-                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0xFF666666);
-                        w = (int) ( w * Math.ceil(status.health()) / Math.ceil(status.maxHealth()) );
-                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0xFFFF3333);
-
+                        double v = Math.ceil(status.health()) / Math.ceil(status.maxHealth());
+                        drawBar(guiGraphics, v,bx+x, by+y, w, h,0xFFFF3333, false);
                         // 満腹度
                         x = 50; y = 12; w = 40; h = 2;
-                        guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0xFF666666);
-                        w = (int) ( w * status.foodLevel() / 20);
-                        guiGraphics.fill(bx+x+(40-w), by+y, bx+x+40, by+y+h, 0xFFFFFF00);
+                        v = (double)status.foodLevel() / 20;
+                        drawBar(guiGraphics, v,bx+x, by+y, w, h,0xFFFFFF00, true);
 
                         // アイテム
-                        if(!offStack.isEmpty()) {
-                            x = 100; y = 0; w = 16; h = 16;
-                            guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0x66333333);
-                            guiGraphics.item(offStack , bx+x, by+y);
+                        for(int i = 0; i < inv.items().size(); i++){
+                            //メインハンド以外で詳細表示出ない場合はスキップ
+                            if (0<i && KeyInputHandler.getHudMode() != 2){
+                                continue;
+                            }
+                            //
+                            ItemData itemData = inv.items().get(i);
+                            if (i==0) {
+                                x = 100; y = 0;
+                            } else if (i==1) {
+                                x = 74; y = 16;
+                            } else {
+                                x = 6+(i-2)*16; y = 16;
+                            }
+                            drawItem(guiGraphics, itemData,bx+x, by+y);
                         }
-                        if(!mainStack.isEmpty()) {
-                            x = 116; y = 0; w = 16; h = 16;
-                            guiGraphics.fill(bx+x, by+y, bx+x+w, by+y+h, 0x66333333);
-                            guiGraphics.item(mainStack, bx + x, by + y);
+
+                        //
+                        if (KeyInputHandler.getHudMode() == 1){
+                           by += 20;
+                        } else if (KeyInputHandler.getHudMode() == 2){
+                            by += 36;
                         }
 
 
@@ -138,9 +130,9 @@ public class InGameHudRenderer {
                     float myRot = (float) Math.toRadians(mc.player.getYRot());
 
                     // 背景と円の描画
-                    guiGraphics.fill(map_x, map_y, map_x+map_size, map_y+map_size, 0x66333333);
+                    guiGraphics.fill(map_x, map_y, map_x+map_size, map_y+map_size, 0xcc333333);
                     for (int i = 64; i < maxDistance; i += 64){
-                        drawCircle(guiGraphics, center_x, center_y, (int)(map_scale *i), 0x33333333);
+                        drawCircle(guiGraphics, center_x, center_y, (int)(map_scale *i), 0xFF666666);
                     }
                     drawCircle(guiGraphics, center_x, center_y, (int)(map_scale * maxDistance), 0xFFFFFFFF);
 
@@ -148,7 +140,7 @@ public class InGameHudRenderer {
                     int padding = 0;
                     int north_x = (int) Math.round(center_x + Math.cos(-myRot + Math.PI / 2.0) * (map_scale*maxDistance + padding ));
                     int north_y = (int) Math.round(center_y + Math.sin(-myRot + Math.PI / 2.0) * (map_scale*maxDistance + padding ));
-                    MutableComponent northComp = Component.literal("N").withStyle(s -> s.withColor(0xFFFF3333));
+                    MutableComponent northComp = Component.literal("N").withStyle(s -> s.withColor(0xFFFFFFFF));
                     guiGraphics.drawScrollingString(hudTextCollector, mc.font, northComp, north_x-3, north_x+3, north_y-4);
                     int south_x = (int) Math.round(center_x + Math.cos(-myRot + Math.PI / 2.0 + Math.PI) * (map_scale*maxDistance + padding ));
                     int south_y = (int) Math.round(center_y + Math.sin(-myRot + Math.PI / 2.0 + Math.PI) * (map_scale*maxDistance + padding ));
@@ -164,10 +156,10 @@ public class InGameHudRenderer {
                     guiGraphics.drawScrollingString(hudTextCollector, mc.font, westComp, west_x - 3, west_x + 3, west_y - 4);
 
                     //サーバーから届いているプレイヤー分をループして描画
-                    for (int i = 0; i < positions.size(); i++) {
+                    for (PlayerData data : playersData) {
 
-                        SharedPlayerData.Position pos = positions.get(i); //ポジション情報一括取得
-                        String name = pos.name();
+                        String name = data.name();
+                        SharedPlayerData.Position pos = data.position();//ポジション情報一括取得
 
                         if (!name.equals(myName)) {
                             // 味方の位置
@@ -186,7 +178,7 @@ public class InGameHudRenderer {
                             int point_y = (int) Math.round(center_y + Math.sin(angle) * distance);
                             int add_y = (int) Math.max(Math.min(deltaY,64),-64) / 2;
 
-                            guiGraphics.fill(point_x, point_y, point_x+1, point_y - add_y, 0xFF999999);
+                            guiGraphics.fill(point_x, point_y, point_x+1, point_y - add_y, 0xFFcccccc);
                             guiGraphics.fill(point_x, point_y, point_x+1, point_y+1, 0xFFFFFFFF);
                             guiGraphics.fill(point_x - 1, point_y - add_y - 1, point_x + 2, point_y - add_y + 2, getPlayerColor(name));
 
@@ -202,8 +194,6 @@ public class InGameHudRenderer {
 
                 }
         );
-
-
     }
 
     //
@@ -226,6 +216,9 @@ public class InGameHudRenderer {
     }
 
 
+
+    // --------
+
     private static void drawCircle(net.minecraft.client.gui.GuiGraphicsExtractor graphics, int x, int y, int radius, int color) {
         // 360度、1度ずつ角度を進めながら円周上の点を計算してドット（小さな四角）を打つ
         for (int i = 0; i < 360; i++) {
@@ -236,6 +229,55 @@ public class InGameHudRenderer {
             int dotY = (int) Math.round(y + Math.sin(angle) * radius);
             // 1x1ピクセルの極小の四角形（fill）を描画して、線のようにつなぎ合わせる
             graphics.fill(dotX, dotY, dotX + 1, dotY + 1, color);
+        }
+    }
+
+    // 文字表示
+    private static void drawText(net.minecraft.client.gui.GuiGraphicsExtractor graphics, String value, int x, int y, int color, boolean flip) {
+        //
+        Minecraft mc = Minecraft.getInstance();
+        ActiveTextCollector hudTextCollector = graphics.textRenderer(GuiGraphicsExtractor.HoveredTextEffects.NONE);
+        //
+        MutableComponent textComp = Component.literal(value).withStyle(s -> s.withColor(color));
+        if(!flip){
+            graphics.drawScrollingString(hudTextCollector, mc.font, textComp, x, x+mc.font.width(value), y);
+        } else {
+            graphics.drawScrollingString(hudTextCollector, mc.font, textComp, x-mc.font.width(value), x, y);
+        }
+    }
+
+    // バー表示(valueは0~1の実数)
+    private static void drawBar(net.minecraft.client.gui.GuiGraphicsExtractor graphics, double value, int x, int y, int w, int h, int color, boolean flip) {
+        // 背景
+        graphics.fill(x, y, x+w, y+h, 0xFF666666);
+        // 値
+        int int_value = (int)Math.round(value * w);
+        if(!flip){
+            graphics.fill(x, y, x+int_value, y+h, color);
+        } else {
+            graphics.fill(x+w-int_value, y, x+w, y+h, color);
+        }
+    }
+
+    //
+    private static void drawItem(net.minecraft.client.gui.GuiGraphicsExtractor graphics, ItemData itemData, int x, int y) {
+
+        // 文字列のアイテムIDをIdentifierに解析
+        Identifier res = Identifier.parse(itemData.itemId());
+        // レジストリから Holder を経由して安全に Item オブジェクトを取得
+        net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(res)
+                .map(net.minecraft.core.Holder.Reference::value)
+                .orElse(net.minecraft.world.item.Items.AIR);
+        // 描画エンジンに渡すためのItemStackオブジェクトに変換
+        net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(item);
+
+        if(!stack.isEmpty()) {
+            int w = 16, h = 16;
+            graphics.fill(x, y, x + w, y + h, 0x66333333);
+            graphics.item(stack, x, y);
+            if (itemData.durabilityRatio() < 1 && 0 < itemData.durabilityRatio()) {
+                drawBar(graphics,itemData.durabilityRatio(),x+1, y+14, 14, 1,0xFF33FF33, false);
+            }
         }
     }
 

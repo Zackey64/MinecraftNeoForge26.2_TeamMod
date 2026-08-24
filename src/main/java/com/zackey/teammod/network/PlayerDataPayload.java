@@ -1,8 +1,6 @@
 package com.zackey.teammod.network;
 
-import com.zackey.teammod.network.SharedPlayerData.Position;
-import com.zackey.teammod.network.SharedPlayerData.Status;
-import com.zackey.teammod.network.SharedPlayerData.Inventory;
+import com.zackey.teammod.network.SharedPlayerData.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -12,9 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public record PlayerDataPayload (
-        List<Position> positions,
-        List<Status> statuses,
-        List<Inventory> inventories
+        List<PlayerData> playersData
 ) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<PlayerDataPayload> TYPE =
@@ -23,45 +19,56 @@ public record PlayerDataPayload (
     // シリアライザー
     public static final StreamCodec<FriendlyByteBuf, PlayerDataPayload> STREAM_CODEC = StreamCodec.of(
             (buf, payload) -> {
-                buf.writeInt(payload.positions().size());
-                for (Position p : payload.positions()) {
+                // --- サーバーからの書き込み ---
+                buf.writeInt(payload.playersData().size());
+                for (PlayerData p : payload.playersData()) {
+
                     buf.writeUtf(p.name());
-                    buf.writeDouble(p.x());
-                    buf.writeDouble(p.y());
-                    buf.writeDouble(p.z());
-                }
-                buf.writeInt(payload.statuses().size());
-                for (Status s : payload.statuses()) {
-                    buf.writeUtf(s.name());
-                    buf.writeFloat(s.health());
-                    buf.writeFloat(s.maxHealth());
-                    buf.writeInt(s.foodLevel());
-                    buf.writeInt(s.level());
-                }
-                buf.writeInt(payload.inventories().size());
-                for (Inventory i : payload.inventories()) {
-                    buf.writeUtf(i.name());
-                    buf.writeUtf(i.mainHandItem());
-                    buf.writeUtf(i.offHandItem());
+
+                    // 1. Position
+                    buf.writeUtf(p.position().worldType());
+                    buf.writeDouble(p.position().x());
+                    buf.writeDouble(p.position().y());
+                    buf.writeDouble(p.position().z());
+
+                    // 2. Status
+                    buf.writeFloat(p.status().health());
+                    buf.writeFloat(p.status().maxHealth());
+                    buf.writeInt(p.status().foodLevel());
+                    buf.writeInt(p.status().level());
+
+                    // 3. Inventory (6つのアイテムをループ書き込み)
+                    buf.writeInt(p.inventory().items().size());
+                    for (ItemData item : p.inventory().items()) {
+                        buf.writeUtf(item.itemId());
+                        buf.writeFloat(item.durabilityRatio());
+                    }
                 }
             },
             buf -> {
-                int posSize = buf.readInt();
-                List<Position> posList = new ArrayList<>();
-                for (int i = 0; i < posSize; i++) {
-                    posList.add(new Position(buf.readUtf(), buf.readDouble(), buf.readDouble(), buf.readDouble()));
+                int size = buf.readInt();
+                List<PlayerData> list = new ArrayList<>();
+                for (int i = 0; i < size; i++) {
+                    String name = buf.readUtf();
+
+                    // 1. Position復元
+                    Position pos = new Position(buf.readUtf(), buf.readDouble(), buf.readDouble(), buf.readDouble());
+
+                    // 2. Status復元
+                    Status status = new Status(buf.readFloat(), buf.readFloat(), buf.readInt(), buf.readInt());
+
+                    // 3. Inventory復元
+                    int itemSize = buf.readInt();
+                    List<ItemData> items = new ArrayList<>();
+                    for (int j = 0; j < itemSize; j++) {
+                        items.add(new ItemData(buf.readUtf(), buf.readFloat()));
+                    }
+                    Inventory inv = new Inventory(items);
+                    //
+                    list.add(new PlayerData(name, pos, status, inv));
+
                 }
-                int statusSize = buf.readInt();
-                List<Status> statusList = new ArrayList<>();
-                for (int i = 0; i < statusSize; i++) {
-                    statusList.add(new Status(buf.readUtf(), buf.readFloat(), buf.readFloat(), buf.readInt(), buf.readInt()));
-                }
-                int invSize = buf.readInt();
-                List<Inventory> invList = new ArrayList<>();
-                for (int i = 0; i < invSize; i++) {
-                    invList.add(new Inventory(buf.readUtf(), buf.readUtf(), buf.readUtf()));
-                }
-                return new PlayerDataPayload(posList, statusList, invList);
+                return new PlayerDataPayload(list);
             }
     );
 

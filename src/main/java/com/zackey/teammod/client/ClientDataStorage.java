@@ -12,15 +12,17 @@ public class ClientDataStorage {
 
     // サーバーから届いた一括プレイヤーデータを保管する1本のリスト
     private static List<PlayerData> playersData = new ArrayList<>();
+    private static Position myBed = new Position("ResourceKey[minecraft:dimension / minecraft:overworld]", 0.0, 0.0, 0.0);
 
     // データの更新用メソッド（ClientPayloadHandlerから呼ばれる）
-    public static synchronized void updateAll(List<PlayerData> data) {
+    public static synchronized void updateAll(List<PlayerData> data, Position bedData) {
         playersData = data;
+        myBed = bedData;
     }
 
     // HUD描画クラス（InGameHudRenderer）へ安全にデータを渡すための取得メソッド
     public static synchronized List<PlayerData> getPlayersData() {
         return new ArrayList<>(playersData);
     }
-
+    public static synchronized Position getMyBed() {return myBed;}
 }

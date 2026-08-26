@@ -10,7 +10,10 @@ public class ClientPayloadHandler {
         // マイクラのメインスレッド（安全な領域）で処理を実行する
         context.enqueueWork(() -> {
             // 統合された1本のリストをそのまま保管庫へ更新
-            ClientDataStorage.updateAll(payload.playersData());
+            ClientDataStorage.updateAll(
+                    payload.playersData(),
+                    payload.myBedPosition()
+            );
         });
     }
 

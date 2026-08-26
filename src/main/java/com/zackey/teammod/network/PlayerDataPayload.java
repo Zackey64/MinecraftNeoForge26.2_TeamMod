@@ -10,7 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public record PlayerDataPayload (
-        List<PlayerData> playersData
+        List<PlayerData> playersData,
+        Position myBedPosition
 ) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<PlayerDataPayload> TYPE =
@@ -44,6 +45,11 @@ public record PlayerDataPayload (
                         buf.writeFloat(item.durabilityRatio());
                     }
                 }
+                //
+                buf.writeUtf(payload.myBedPosition().worldType());
+                buf.writeDouble(payload.myBedPosition().x());
+                buf.writeDouble(payload.myBedPosition().y());
+                buf.writeDouble(payload.myBedPosition().z());
             },
             buf -> {
                 int size = buf.readInt();
@@ -68,7 +74,8 @@ public record PlayerDataPayload (
                     list.add(new PlayerData(name, pos, status, inv));
 
                 }
-                return new PlayerDataPayload(list);
+                Position myBed = new Position(buf.readUtf(), buf.readDouble(), buf.readDouble(), buf.readDouble());
+                return new PlayerDataPayload(list, myBed);
             }
     );
 

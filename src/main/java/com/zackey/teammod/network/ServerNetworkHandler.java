@@ -22,6 +22,11 @@ public class ServerNetworkHandler {
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
 
+        // サーバーのみ
+        if (event.getServer() == null) {
+            return;
+        }
+
         // 時間処理
         tickCounter++;
         if (tickCounter < 10) {
@@ -40,7 +45,6 @@ public class ServerNetworkHandler {
 
         // プレイヤー分送る
         for (ServerPlayer player : players) {
-
             //名前
             String name = player.getName().getString();
             // 座標データ
@@ -61,12 +65,32 @@ public class ServerNetworkHandler {
             playersDataList.add(new PlayerData(name, pos, status, inv));
         }
 
-        // 統合された1本の大元リストをパケットに詰めて全プレイヤーへ一斉送信！
-        PlayerDataPayload packet = new PlayerDataPayload(playersDataList);
-        PacketDistributor.sendToAllPlayers(packet);
+        //
+        for (ServerPlayer recipient : players) {
+
+            net.minecraft.server.level.ServerPlayer.RespawnConfig config = recipient.getRespawnConfig();
+            net.minecraft.core.BlockPos bedBlockPos = null;
+            String bedWorld = "ResourceKey[minecraft:dimension / minecraft:overworld]";
+            if (config != null && config.respawnData().pos() != null) {
+                bedBlockPos = config.respawnData().pos();
+                bedWorld = config.respawnData().dimension().toString();
+            }
+            // 【安全対策】一度もベッドで寝ていない場合は、ワールドの大元の初期スポーン地点で代用
+            if (bedBlockPos == null) {
+                bedBlockPos = recipient.level().getRespawnData().pos();
+                bedWorld = "ResourceKey[minecraft:dimension / minecraft:overworld]";
+            }
+
+            // 本人専用のベッドデータを Position オブジェクトに変換
+            SharedPlayerData.Position myBedPosition = new SharedPlayerData.Position(bedWorld, bedBlockPos.getX(), bedBlockPos.getY(), bedBlockPos.getZ());
+
+            // 全員の共通データリスト ＋ 「その人専用のベッド位置」をセットにした特急便パケットを作成
+            PlayerDataPayload packet = new PlayerDataPayload(playersDataList, myBedPosition);
+            // 全体分配信（sendToAll）ではなく、対象のプレイヤーの接続回線（connection.send）にピンポイントで直送！
+            recipient.connection.send(packet);
+        }
 
     }
-
 
     //
     private static SharedPlayerData.ItemData createItemData(ItemStack stack) {

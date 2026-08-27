@@ -56,7 +56,7 @@ public class KeyInputHandler {
         if (toggleMapKey != null && toggleMapKey.consumeClick()) {
             // フラグのオン・オフを反転
             mapMode ++;
-            if (mapMode > 2) {mapMode = 0;}
+            if (mapMode > 3) {mapMode = 0;}
         }
     }
 

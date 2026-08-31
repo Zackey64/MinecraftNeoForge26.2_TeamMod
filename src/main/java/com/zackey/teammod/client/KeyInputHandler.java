@@ -1,7 +1,9 @@
 package com.zackey.teammod.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.zackey.teammod.TeamMod;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -19,13 +21,14 @@ public class KeyInputHandler {
     // キーマッピングの登録用インスタンス
     public static KeyMapping toggleHudKey;
     public static KeyMapping toggleMapKey;
+    public static KeyMapping openConfigKey;
     // キーをシステムに登録する（MODバス対応）
     @SubscribeEvent
     public static void registerKeys(RegisterKeyMappingsEvent event) {
         Identifier categoryId = Identifier.fromNamespaceAndPath("teammod", "main_category");
         KeyMapping.Category customCategory = new KeyMapping.Category(categoryId);
         event.registerCategory(customCategory);
-        //
+        /*
         toggleHudKey = new KeyMapping(
                 "ＨＵＤ表示切替",
                 InputConstants.Type.KEYSYM,
@@ -33,7 +36,6 @@ public class KeyInputHandler {
                 customCategory
         );
         event.register(toggleHudKey);
-        //
         toggleMapKey = new KeyMapping(
                 "マップ表示切替",
                 InputConstants.Type.KEYSYM,
@@ -41,11 +43,21 @@ public class KeyInputHandler {
                 customCategory
         );
         event.register(toggleMapKey);
+        */
+        // 設定画面
+        openConfigKey = new KeyMapping(
+                "TeamMod設定画面",
+                InputConstants.Type.KEYSYM,
+                GLFW.GLFW_KEY_M,
+                customCategory
+        );
+        event.register(openConfigKey);
     }
 
     // クライアントの毎ティック処理でキー入力を監視する（GAMEバス対応）
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
+        /*
         // キーが押された瞬間を確実にキャッチする
         if (toggleHudKey != null && toggleHudKey.consumeClick()) {
             // フラグのオン・オフを反転
@@ -57,6 +69,17 @@ public class KeyInputHandler {
             // フラグのオン・オフを反転
             mapMode ++;
             if (mapMode > 3) {mapMode = 0;}
+        }
+        */
+        // 設定画面
+        if (openConfigKey != null && openConfigKey.consumeClick()) {
+            Minecraft minecraft = Minecraft.getInstance();
+            if (minecraft.gui.screen() == null) {
+                // 設定画面を開く
+                minecraft.setScreenAndShow(
+                        new TeamModConfigScreen(null)
+                );
+            }
         }
     }
 

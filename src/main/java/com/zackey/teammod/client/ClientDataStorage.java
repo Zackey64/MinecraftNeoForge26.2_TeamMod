@@ -25,4 +25,23 @@ public class ClientDataStorage {
         return new ArrayList<>(playersData);
     }
     public static synchronized Position getMyBed() {return myBed;}
+
+
+
+    //
+    private static final int MAX_TRAIL_POINTS = 100;
+    private static final List<Position> trailPoints = new ArrayList<>();
+
+    public static synchronized void addTrailPoint(Position position) {
+
+        if (trailPoints.size() >= MAX_TRAIL_POINTS) {
+            trailPoints.remove(0);
+        }
+
+        trailPoints.add(position);
+    }
+    public static synchronized List<Position> getTrailPoints() {
+        return new ArrayList<>(trailPoints);
+    }
+
 }

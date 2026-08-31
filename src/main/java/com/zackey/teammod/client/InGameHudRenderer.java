@@ -1,6 +1,7 @@
 package com.zackey.teammod.client;
 
 
+import com.zackey.teammod.Config;
 import com.zackey.teammod.network.SharedPlayerData.ItemData;
 import com.zackey.teammod.network.SharedPlayerData;
 import com.zackey.teammod.network.SharedPlayerData.PlayerData;
@@ -11,10 +12,14 @@ import net.minecraft.core.Position;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import org.xml.sax.Locator;
 
 import java.util.List;
+import java.util.UUID;
 
 public class InGameHudRenderer {
 
@@ -37,13 +42,13 @@ public class InGameHudRenderer {
                     // プレーヤー一覧
                     // ----------------------------------------------------------------
                     //表示モードが０（非表示）でない
-                    if (KeyInputHandler.getHudMode() != 0) {
+                    if (Config.SHOW_LIST.get()) {
 
                         int bx = 4;   // 画面上端からの開始位置
                         int by = 4;   // 画面左端からの開始位置
                         int gap =20;
-                        if (KeyInputHandler.getMapMode() != 0) by = 128;
-                        if (KeyInputHandler.getHudMode() == 2) gap = 38;
+                        if (Config.SHOW_RADAR.get()) by = 128;
+                        if (Config.LIST_MODE.get() == 1) gap = 38;
 
                         PlayerList l = new PlayerList(guiGraphics, bx, by,116,116);
 
@@ -60,7 +65,7 @@ public class InGameHudRenderer {
                             l.drawStatus(data, 10,2+py,84,12);
                             // アイテム
                             l.drawItemMain(data, 100,0+py);
-                            if(KeyInputHandler.getHudMode() == 2){
+                            if(Config.LIST_MODE.get() == 1){
                                 l.drawItemOff(data, 82, 18+py);
                                 l.drawItemArmor(data, 6, 18+py, 2);
                             }
@@ -74,7 +79,7 @@ public class InGameHudRenderer {
                     // 位置情報
                     // ----------------------------------------------------------------
                     //表示モードが０（非表示）でない
-                    if (KeyInputHandler.getMapMode() != 0) {
+                    if (Config.SHOW_RADAR.get()) {
 
                         // 自身の情報
                         String myName = mc.player.getName().getString();
@@ -84,12 +89,26 @@ public class InGameHudRenderer {
 
                         Radar r = new Radar(guiGraphics, 4,4,116,116);
                         double rot = 0;
-                        if (KeyInputHandler.getMapMode() == 1) rot = Math.PI/2;
-                        if (KeyInputHandler.getMapMode() == 2) rot = Math.PI/5;
-                        if (KeyInputHandler.getMapMode() == 3) rot = Math.toRadians( mc.player.getXRot() ) ;
-                        r.setRadarSetting(mc.player, 256, 128, 0.2, 0.2, rot);
-                        r.drawRadarRing(64);
+                        if (Config.RADAR_MODE.get()==0) rot = Math.PI/2;
+                        if (Config.RADAR_MODE.get()==1) rot = Math.PI/5;
+                        if (Config.RADAR_MODE.get()==2) rot = Math.toRadians( mc.player.getXRot() ) ;
+                        r.setRadarSetting(mc.player, Config.RADAR_SIZE.get(), Config.RADAR_SIZE.get(), 51.2/Config.RADAR_SIZE.get(), 51.2/Config.RADAR_SIZE.get(), rot);
+                        r.drawRadarRing(Config.RADAR_SIZE.get()/4);
                         r.drawRadarDirection(0);
+
+                        // トラッキング
+                        if(Config.RADAR_TRACK.get()) {
+                            List<SharedPlayerData.Position> points = ClientDataStorage.getTrailPoints();
+                            int size = points.size();
+                            for (int i = 0; i < size; i++) {
+                                SharedPlayerData.Position point = points.get(i);
+                                if (myWorld.equals(point.worldType())) {
+                                    int alpha = (int) (255.0 * (i + 1) / size);
+                                    int color = (alpha << 24) | 0x00cccccc;
+                                    r.drawPoint(point.x(), point.y(), point.z(), color, 2);
+                                }
+                            }
+                        }
 
                         // 味方の位置
                         for (PlayerData data : playersData) {//サーバーから届いているプレイヤー分をループ
@@ -133,18 +152,19 @@ public class InGameHudRenderer {
 
     //
     private static int getPlayerColor(String name) {
-        // 1. 24色の綺麗なカラーパレット（お好みでカラーコードは自由に変更できます）
-        int[] colorPalette = {
-                0xFFFFFF00, // 黄色
-                0xFF00FFFF, // 水色
-                0xFFFF00FF, // ピンク
-        };
+
         // 2. 名前の文字列を絶対に変らない数字（ハッシュコード）に変換
         int hash = name.hashCode();
-        // 3. マイナスの数値を防ぐために絶対値（Math.abs）にし、パレットのサイズで割った余りを出す
-        int index = Math.abs(hash) % colorPalette.length;
+        RandomSource random = RandomSource.create(hash);
+
+        float hue = random.nextFloat();
+        float saturation = 0.75f; // 0.0(白っぽい) ～ 1.0(鮮やか)
+        float brightness = 0.85f; // 0.0(暗い) ～ 1.0(明るい)
+
         // 割り当てられた固有の色を返す
-        return colorPalette[index];
+        int rgb = Mth.hsvToRgb(hue, saturation, brightness) & 0xFFFFFF;
+        // 5. 不透明100%のアルファ値（0xFF000000）を合成して、8桁（0xFFRRGGBB）にする
+        return 0xFF000000 | rgb;
     }
 
     // --------
@@ -306,19 +326,8 @@ public class InGameHudRenderer {
                 drawItem(graphics, itemData, List_x + x + i*(gap+16), List_y + y);
             }
         }
-
-
-
-
-
-
-
-
-
-
-
-
     }
+
     /*
     ================================================================
     座標レーダー標示用クラス
@@ -359,7 +368,6 @@ public class InGameHudRenderer {
             this.radar_cy = radar_y + radar_h / 2;
             graphics.fill(x, y, x + w, y + h, 0x99000000);
             graphics.outline(x, y, w, h, 0xFFFFFFFF);
-            drawText(graphics, "Radar", x+2, y+2, 0xFFFFFFFF, 1);
         }
 
         // 設定値
@@ -370,6 +378,8 @@ public class InGameHudRenderer {
             this.map_scaleXZ = scaleXZ;
             this.map_scaleY = scaleY;
             this.XRot = rot;
+            drawText(graphics, "Radar", radar_x+2, radar_y+2, 0xFFFFFFFF, 1);
+            drawText(graphics, map_limitXZ+"", radar_x-2+radar_w, radar_y+2, 0xFFFFFFFF, -1);
         }
 
         // リング表示
@@ -431,6 +441,9 @@ public class InGameHudRenderer {
             if (dy > map_limitY) dy = map_limitY;
             if (dy < -map_limitY) dy = -map_limitY;
 
+            if ( type==2 && distance > map_limitXZ ) return;
+            if ( type==2 && Math.abs(dy) > map_limitY ) return;
+
             double dX = Math.cos(angle) * distance;
             double dY = Math.sin(angle) * distance * Math.sin(this.XRot);
             double addY = Math.cos(this.XRot) * dy;
@@ -438,12 +451,13 @@ public class InGameHudRenderer {
             int px = radar_cx + (int) Math.round(dX * map_scaleXZ);
             int py = radar_cy + (int) Math.round(dY * map_scaleXZ);
             int phy = radar_cy + (int) Math.round(dY * map_scaleXZ - addY * map_scaleY);
-            if(addY!=0){
+            if(type!=2 && addY!=0){
                 graphics.fill(px, py, px+1, phy+1, 0xFFcccccc);
                 graphics.fill(px, py, px+1, py+1, 0xFFFFFFFF);
             }
             if (type==0) InGameHudRenderer.drawPoint(graphics, px, phy, color);
             if (type==1) InGameHudRenderer.drawCross(graphics, px, phy, color);
+            if (type==2 && distance < map_limitXZ ) graphics.fill(px, phy, px+1, phy+1, color);
 
         }
 
